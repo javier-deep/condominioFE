@@ -1,9 +1,12 @@
 import Chat from "./components/Chat";
+import NotificationButton from "./components/NotificationButton";
 import "./App.css";
 
 function App() {
   return (
     <div className="app-wrapper">
+
+      <NotificationButton />
 
       {/* Sidebar */}
       <aside className="sidebar">
