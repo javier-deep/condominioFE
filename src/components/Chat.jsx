@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import axios from "axios";
 import "../services/echo";
 
@@ -6,6 +6,8 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [alert, setAlert] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
     const channel = window.Echo.channel("chat");
@@ -18,6 +20,17 @@ export default function Chat() {
       window.Echo.leaveChannel("chat");
     };
   }, []);
+
+  // Función para mostrar alertas con transición
+  const showAlertWithTransition = (message, type = "success", duration = 3000) => {
+    setAlert({ message, type });
+    setShowAlert(true);
+
+    setTimeout(() => {
+      setShowAlert(false);
+      setTimeout(() => setAlert(null), 500);
+    }, duration);
+  };
 
   const sendMessage = async () => {
     if (!text.trim() || sending) return;
@@ -32,9 +45,14 @@ export default function Chat() {
     try {
       await axios.post("http://localhost:8001/api/chat/send", messageData);
       setText("");
+      showAlertWithTransition("✓ Mensaje enviado exitosamente", "success", 3000);
     } catch (error) {
       console.error("Error al enviar mensaje:", error);
-      alert("No se pudo enviar el mensaje. Revisa si el backend está prendido.");
+      showAlertWithTransition(
+        error.response?.data?.message || "No se pudo enviar el mensaje. Revisa si el backend está prendido.",
+        "error",
+        4000
+      );
     } finally {
       setSending(false);
     }
@@ -76,11 +94,24 @@ export default function Chat() {
             className="send-icon-btn" 
             onClick={sendMessage}
             disabled={sending}
+            title={sending ? "Enviando..." : "Enviar mensaje"}
           >
-            {sending ? "..." : "➤"}
+            {sending ? "⏳" : "➤"}
           </button>
         </div>
       </div>
+
+      {/* Alerta con transición */}
+      {alert && (
+        <div 
+          className={`chat-alert ${alert.type} ${showAlert ? "show" : "hide"}`}
+          role="alert"
+        >
+          <div className="alert-content">
+            {alert.type === "success" ? "✅" : "❌"} {alert.message}
+          </div>
+        </div>
+      )}
 
     </div>
   );

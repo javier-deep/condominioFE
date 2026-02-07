@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import axios from "axios";
 import "../services/echo";
 
 export default function NotificationButton() {
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
+  const [isLoading, startTransition] = useTransition();
+  const [alert, setAlert] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
 
   useEffect(() => {
     try {
@@ -51,6 +55,64 @@ export default function NotificationButton() {
 
   const handleOpen = () => setOpen((v) => !v);
 
+  // Función para mostrar alertas con transición
+  const showAlertWithTransition = (message, type = "success", duration = 4000) => {
+    setAlert({ message, type });
+    setShowAlert(true);
+
+    setTimeout(() => {
+      setShowAlert(false);
+      setTimeout(() => setAlert(null), 500);
+    }, duration);
+  };
+
+  const handleFetchData = () => {
+    startTransition(async () => {
+      try {
+        const response = await axios.get("http://localhost:8001/api/notifications");
+        showAlertWithTransition(`Datos cargados: ${response.data.length} registros`, "success");
+      } catch (error) {
+        showAlertWithTransition(
+          error.response?.data?.message || "Error al cargar datos",
+          "error"
+        );
+      }
+    });
+  };
+
+  const handleSendNotification = () => {
+    startTransition(async () => {
+      try {
+        const response = await axios.post("http://localhost:8001/api/notifications/send", {
+          title: "Notificación de prueba",
+          message: "Esta es una notificación de prueba",
+          type: "general",
+        });
+        showAlertWithTransition("✓ Notificación enviada correctamente", "success");
+      } catch (error) {
+        showAlertWithTransition(
+          error.response?.data?.message || "Error al enviar notificación",
+          "error"
+        );
+      }
+    });
+  };
+
+  const handleClearNotifications = () => {
+    startTransition(async () => {
+      try {
+        await axios.delete("http://localhost:8001/api/notifications/clear");
+        setNotifications([]);
+        showAlertWithTransition("✓ Notificaciones eliminadas", "success");
+      } catch (error) {
+        showAlertWithTransition(
+          error.response?.data?.message || "Error al eliminar notificaciones",
+          "error"
+        );
+      }
+    });
+  };
+
   const openNotification = (n) => {
     setNotifications((prev) => prev.filter((item) => item.id !== n.id));
     if (n.url) {
@@ -69,6 +131,37 @@ export default function NotificationButton() {
 
       {open && (
         <div className="notification-dropdown">
+          {/* Botones de acción */}
+          <div className="notification-actions">
+            <button 
+              onClick={handleFetchData}
+              disabled={isLoading}
+              className="action-btn fetch-btn"
+              title="Cargar datos desde el servidor"
+            >
+              {isLoading ? "⏳ Cargando..." : "📥 Cargar datos"}
+            </button>
+            <button 
+              onClick={handleSendNotification}
+              disabled={isLoading}
+              className="action-btn send-btn"
+              title="Enviar una notificación de prueba"
+            >
+              {isLoading ? "⏳ Enviando..." : "📤 Enviar prueba"}
+            </button>
+            <button 
+              onClick={handleClearNotifications}
+              disabled={isLoading || notifications.length === 0}
+              className="action-btn clear-btn"
+              title="Eliminar todas las notificaciones"
+            >
+              {isLoading ? "⏳ Limpiando..." : "🗑️ Limpiar"}
+            </button>
+          </div>
+
+          <div className="notification-divider"></div>
+
+          {/* Lista de notificaciones */}
           {notifications.length === 0 ? (
             <div className="notification-empty">No hay notificaciones</div>
           ) : (
@@ -86,6 +179,18 @@ export default function NotificationButton() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Alerta con transición */}
+      {alert && (
+        <div 
+          className={`notification-alert ${alert.type} ${showAlert ? "show" : "hide"}`}
+          role="alert"
+        >
+          <div className="alert-content">
+            {alert.type === "success" ? "✅" : "❌"} {alert.message}
+          </div>
         </div>
       )}
     </div>
